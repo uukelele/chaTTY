@@ -187,26 +187,26 @@ class ChaTTY(App):
 
     def setup_channel_events(self, channel: RTCDataChannel):
         @channel.on('open')
-        def on_open():
+        async def on_open():
             self.is_connected = True
             nick = self.query_one('#nick-input').value.strip() or "Anonymous"
             channel.send(json.dumps({'type': 'init', 'nick': nick}))
 
-            self.call_from_thread(self.write_log, "[green]System: Tunnel Established.[/green]")
+            self.write_log("[green]System: Tunnel Established.[/green]")
 
         @channel.on('close')
-        def on_close():
+        async def on_close():
             self.is_connected = False
-            self.call_from_thread(self.write_log, "[yellow]System: Connection closed.[/yellow]")
+            self.write_log("[yellow]System: Connection closed.[/yellow]")
 
         @channel.on('message')
-        def on_message(message):
+        async def on_message(message):
             data = json.loads(message)
             if data.get('type') == 'init':
                 self.peer_name = data.get('nick', 'Anonymous')
-                self.call_from_thread(self.write_log, f"[yellow]{self.peer_name} has joined the chat.[/yellow]")
+                self.write_log(f"[yellow]{self.peer_name} has joined the chat.[/yellow]")
             elif data.get('type') == 'chat':
-                self.call_from_thread(self.write_log, f"[magenta]{self.peer_name}:[/magenta] {data.get('text', '<empty message>')}")
+                self.write_log(f"[magenta]{self.peer_name}:[/magenta] {data.get('text', '<empty message>')}")
 
     def write_log(self, text: str):
         self.query_one('#chat-box', RichLog).write(text, animate=True)
@@ -229,7 +229,7 @@ class ChaTTY(App):
                     self.pc = RTCPeerConnection(RTCConfiguration(iceServers=[STUN_SERVER]))
 
                     @self.pc.on('datachannel')
-                    def on_datachannel(channel):
+                    async def on_datachannel(channel):
                         self.channel = channel
                         self.setup_channel_events(channel)
 
