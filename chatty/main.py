@@ -6,6 +6,7 @@ from textual.app import App, ComposeResult
 from textual.containers import Horizontal, Vertical
 from textual.widgets import Header, Footer, Label, Input, Button, RichLog
 from textual.reactive import reactive
+from rich.text import Text
 
 from .network import encode_sdp, decode_sdp
 
@@ -213,7 +214,7 @@ class ChaTTY(App):
             asyncio.create_task(on_open())
 
     def write_log(self, text: str):
-        self.query_one('#chat-box', RichLog).write(text, animate=True)
+        self.query_one('#chat-box', RichLog).write(Text.from_markup(text), animate=True)
 
     async def on_button_pressed(self, event: Button.Pressed) -> None:
         if  event.button.id == 'host-connect-btn':
