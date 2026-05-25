@@ -35,7 +35,6 @@ class ChaTTY(App):
         color: $text;
         text-style: bold;
         padding: 1;
-        margin-bottom: 1;
     }
 
     .field-label {
@@ -63,10 +62,25 @@ class ChaTTY(App):
     Input {
         margin-bottom: 1;
     }
+
+    #invite-container {
+        layout: horizontal;
+        height: auto;
+        margin-bottom: 1;
+    }
+
+    #invite-input {
+        width: 70%;
+    }
+
+    #copy-btn {
+        width: 30%;
+        margin: 0;
+    }
     """
 
     local_ip = reactive("Loading...")
-    local_port = reactive(50001)
+    local_port = reactive(19747)
     invite_string = reactive("")
     is_listening = reactive(False)
     is_connected = reactive(False)
@@ -74,11 +88,22 @@ class ChaTTY(App):
 
     theme = "catppuccin-frappe"
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.writer = None
+        self.reader = None
+
+        self.noise = None
+        self.server = None
+
+
+
     def compose(self) -> ComposeResult:
         yield Header()
         yield Horizontal(
             Vertical(
-                Label("You", classes="panel-title"),
+                Label("Profile", classes="panel-title"),
 
                 Label("Nickname:", classes="field-label"),
                 Input(value=os.getenv("USER", f"User_{random.randint(1000, 9999)}"), id="nick-input"),
@@ -90,12 +115,16 @@ class ChaTTY(App):
                 Label(id="ip-label"),
 
                 Label("Listening on port:", classes="field-label"),
-                Input(value="50001", id="port-input", type="integer"),
+                Input(value="19747", id="port-input", type="integer"),
 
                 Button("Start Listening", variant="success", id="listen-btn"),
 
                 Label("Invite Code:", classes="field-label"),
-                Input(disabled=True, id="invite-input"),
+                Horizontal(
+                    Input("Generating...", id="invite-input", disabled=True),
+                    Button("Copy", variant="primary", id="copy-btn"),
+                    id="invite-container",
+                ),
 
                 id="left-panel",
             ),
@@ -138,21 +167,19 @@ class ChaTTY(App):
 
         self.query_one('#chat-area').display = False
 
-        self.writer = None
-        self.reader = None
-
-        self.noise = None
-        self.server = None
-
-        asyncio.create_task(self.update_stun_info(50001))
+        asyncio.create_task(self.update_stun_info(19747))
 
     def watch_is_connected(self, is_connected: bool) -> None:
-        self.query_one('#connect-area').display = not is_connected
-        self.query_one('#chat-area').display = is_connected
+        try:
+            self.query_one('#connect-area').display = not is_connected
+            self.query_one('#chat-area').display = is_connected
+        except: pass
 
     def watch_is_listening(self, is_listening: bool) -> None:
-        self.query_one('#port-input').disabled = is_listening
-        self.query_one('#listen-btn').disabled = is_listening
+        try:
+            self.query_one('#port-input').disabled = is_listening
+            self.query_one('#listen-btn').disabled = is_listening
+        except: pass
 
     async def update_stun_info(self, local_port: int):
         self.query_one("#ip-label").update('Resolving...')
@@ -177,6 +204,10 @@ class ChaTTY(App):
             await self.send_chat_message()
         elif event.button.id == 'disconnect-btn':
             await self.disconnect()
+        elif event.button.id == 'copy-btn':
+            if self.invite_string:
+                self.copy_to_clipboard(self.invite_string)
+                self.notify("Invite Code Copied!", severity="information")
 
     async def on_input_submitted(self, event: Input.Submitted) -> None:
         if event.input.id == "msg-input":
@@ -251,6 +282,10 @@ class ChaTTY(App):
             self.notify("Invalid Invite Code", severity="error")
             return
         
+        if pubkey == self.pub_bytes:
+            self.notify("You can't connect to yourself!", severity="error")
+            return
+        
         self.is_connected = True
         chat_box.write(f"[yellow]System: Connecting to {ip}:{port}[/yellow]")
         nick = self.query_one("#nick-input").value.strip() or "User"
@@ -285,8 +320,8 @@ class ChaTTY(App):
             asyncio.create_task(self.read_loop())
         
         except Exception as e:
-            chat_box.write(f"[red]Handshake Failed: {e}[/red]")
             self.is_connected = False
+            self.notify(str(e), severity='error')
 
     async def send_chat_message(self):
         msg_input = self.query_one('#msg-input', Input)
@@ -331,8 +366,11 @@ class ChaTTY(App):
         if not self.is_connected: return
 
         self.is_connected = False
-        chat_box = self.query_one('#chat-box', RichLog)
-        chat_box.write(f"[yellow]System: Session closed.[/yellow]")
+
+        try:
+            chat_box = self.query_one('#chat-box', RichLog)
+            chat_box.write(f"[yellow]System: Session closed.[/yellow]")
+        except: pass
 
         if self.writer:
             try:
