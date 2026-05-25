@@ -35,7 +35,7 @@ def get_keys() -> tuple[bytes, bytes]:
         pub_key = priv_key.public_key()
         pub_bytes = pub_key.public_bytes(
             encoding = serialization.Encoding.Raw,
-            format = serialization.Publicformat.Raw,
+            format = serialization.PublicFormat.Raw,
         )
 
         PRIV_KEY.write_bytes(priv_bytes)
