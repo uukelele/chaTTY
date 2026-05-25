@@ -197,7 +197,8 @@ class ChaTTY(App):
         @channel.on('close')
         async def on_close():
             self.is_connected = False
-            self.write_log("[yellow]System: Connection closed.[/yellow]")
+            try: self.write_log("[yellow]System: Connection closed.[/yellow]")
+            except: pass
 
         @channel.on('message')
         async def on_message(message):
@@ -207,6 +208,9 @@ class ChaTTY(App):
                 self.write_log(f"[yellow]{self.peer_name} has joined the chat.[/yellow]")
             elif data.get('type') == 'chat':
                 self.write_log(f"[magenta]{self.peer_name}:[/magenta] {data.get('text', '<empty message>')}")
+
+        if channel.readyState == 'open':
+            asyncio.create_task(on_open())
 
     def write_log(self, text: str):
         self.query_one('#chat-box', RichLog).write(text, animate=True)
