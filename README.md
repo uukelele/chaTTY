@@ -6,7 +6,7 @@ chaTTY is a terminal-based chatting application for people who live in the termi
 ```
 $ gh repo clone uukelele/chaTTY
 $ cd chaTTY
-$ pip install -e .
+$ pip install -e . -U
 ```
 
 ## Updating
@@ -14,6 +14,7 @@ $ pip install -e .
 ```
 $ cd chaTTY
 $ git pull
+$ pip install -e . -U # This command isn't always necessary, but it sometimes is needed.
 ```
 
 ## Usage

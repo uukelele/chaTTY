@@ -76,7 +76,7 @@ class ChaTTY(App):
         margin-bottom: 1;
     }
 
-    #invite-input {
+    #host-invite-output {
         width: 70%;
     }
 
