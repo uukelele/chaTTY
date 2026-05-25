@@ -165,6 +165,7 @@ class ChaTTY(App):
         self.query_one('#chat-area').display = False
 
         self.pc = RTCPeerConnection(RTCConfiguration(iceServers=[STUN_SERVER]))
+        self.setup_pc_events(self.pc)
 
         self.channel = self.pc.createDataChannel('chat')
         self.setup_channel_events(self.channel)
@@ -182,8 +183,21 @@ class ChaTTY(App):
 
     async def show_invite(self):
         await asyncio.sleep(2) # wait for webrtc to map ports
-        invite_str = encode_sdp(self.pc.localDescription)
-        self.query_one('#host-invite-output').value = invite_str
+        if self.pv and self.pc.localDescription:
+            invite_str = encode_sdp(self.pc.localDescription)
+            self.query_one('#host-invite-output').value = invite_str
+
+    def setup_pc_events(self, pc: RTCPeerConnection):
+        @pc.on('connectionstatechange')
+        async def on_connectionstatechange():
+            state = pc.connectionState
+            if state in ('checking', 'connected'):
+                self.is_connected = True
+
+            self.call_from_thread(self.write_log, f"[bright_black]System: ICE State -> {state}[/bright_black]")
+
+            if state == 'failed':
+                self.call_from_thread(self.write_log, '[red]System: Connection Failed.[/red]')
 
     def setup_channel_events(self, channel: RTCDataChannel):
         @channel.on('open')
@@ -197,7 +211,7 @@ class ChaTTY(App):
         @channel.on('close')
         def on_close():
             self.is_connected = False
-            self.call_from_thread(self.write_log, "[yellow]System: Connection closed.[/yellow]")
+            self.call_from_thread(self.write_log, f"[yellow]System: {self.peer_name} disconnected.[/yellow]")
 
         @channel.on('message')
         def on_message(message):
@@ -206,18 +220,27 @@ class ChaTTY(App):
                 self.peer_name = data.get('nick', 'Anonymous')
                 self.call_from_thread(self.write_log, f"[yellow]{self.peer_name} has joined the chat.[/yellow]")
             elif data.get('type') == 'chat':
-                self.call_from_thread(self.write_log, f"[magenta]{self.peer_name}:[/magenta] {data.get('text', '<empty message>')}")
+                self.call_from_thread(self.write_log, f"[magenta]{self.peer_name}:[/magenta] {data.get('text', '<no message>')}")
 
     def write_log(self, text: str):
-        self.query_one('#chat-box', RichLog).write(text, animate=True)
+        try:
+            self.query_one('#chat-box', RichLog).write(text, animate=True)
+        except: pass
 
     async def on_button_pressed(self, event: Button.Pressed) -> None:
         if  event.button.id == 'host-connect-btn':
             ansr = self.query_one('#host-answer-input').value.strip()
             if ansr:
                 try:
+                    if not self.pc or self.pc.signalingState != 'have-local-offer':
+                        self.notify("Not in host mode!", severity="error")
+                        return
+
                     ansr_sdp = decode_sdp(ansr)
                     await self.pc.setRemoteDescription(ansr_sdp)
+                    self.notify("Answer accepted. Handshaking.", severity="information")
+                    self.is_connected = True
+                    self.write_log("[bright_black]System: Negotiating connection...[/bright_black]")
                 except Exception as e:
                     self.notify(str(e), severity="error")
 
@@ -225,8 +248,12 @@ class ChaTTY(App):
             invite_string = self.query_one('#join-invite-input').value.strip()
             if invite_string:
                 try:
-                    await self.pc.close()
+                    self.query_one('#join-answer-output').value = 'Gathering routes...'
+
+                    if self.pc: await self.pc.close()
+
                     self.pc = RTCPeerConnection(RTCConfiguration(iceServers=[STUN_SERVER]))
+                    self.setup_pc_events(self.pc)
 
                     @self.pc.on('datachannel')
                     def on_datachannel(channel):
@@ -263,7 +290,7 @@ class ChaTTY(App):
 
     async def on_input_submitted(self, event: Input.Submitted) -> None:
         if event.input.id == "msg-input":
-            await self.send_chat_message()
+            self.send_chat_message()
 
     def send_chat_message(self):
         msg_input = self.query_one('#msg-input', Input)
