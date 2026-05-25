@@ -5,9 +5,7 @@ description = "chaTTY is a terminal-based chatting application for people who li
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
-    "asyncer>=0.0.17",
-    "cryptography>=48.0.0",
-    "noiseprotocol>=0.3.1",
+    "aiortc>=1.14.0",
     "textual>=8.2.7",
 ]
 
