@@ -45,32 +45,41 @@ def get_keys() -> tuple[bytes, bytes]:
 
 def get_ext_ip(local_port: int = 0) -> tuple[str, int]:
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    sock.bind(('0.0.0.0', local_port))
-    sock.settimeout(3.0)
 
-    msg = struct.pack("!HHI12s", 0x0001, 0, 0x2112A442, b'\x00'*12)
-    for s_host, s_port in STUN_SERVERS:
-        try:
-            sock.sendto(msg, (s_host, s_port))
-            data, _ = sock.recvfrom(2048)
-            offset = 20
-            while offset < len(data):
-                attr_type, attr_length = struct.unpack_from("!HH", data, offset)
-                if attr_type == 0x0020:
-                    family = data[offset + 5]
-                    if family == 0x01:
-                        xport = struct.unpack_from("!H", data, offset + 6)[0]
-                        port = xport ^ 0x2112
-                        xaddr = struct.unpack_from("!I", data, offset + 8)[0]
-                        ip = socket.inet_ntoa(struct.pack("!I", xaddr ^ 0x2112A442))
-                        return ip, port
-                if attr_length == 0:
-                    offset += 4
-                else:
-                    padding = (4 - (attr_length % 4)) % 4
-                    offset += 4 + attr_length + padding
-        except Exception:
-            continue
+    try:
+        try: sock.bind(('0.0.0.0', local_port))
+        except:
+            try: sock.bind(('0.0.0.0', 0))
+            except: return '127.0.0.1', local_port
+
+        sock.settimeout(3.0)
+
+        msg = struct.pack("!HHI12s", 0x0001, 0, 0x2112A442, b'\x00'*12)
+        for s_host, s_port in STUN_SERVERS:
+            try:
+                sock.sendto(msg, (s_host, s_port))
+                data, _ = sock.recvfrom(2048)
+                offset = 20
+                while offset < len(data):
+                    attr_type, attr_length = struct.unpack_from("!HH", data, offset)
+                    if attr_type == 0x0020:
+                        family = data[offset + 5]
+                        if family == 0x01:
+                            xport = struct.unpack_from("!H", data, offset + 6)[0]
+                            port = xport ^ 0x2112
+                            xaddr = struct.unpack_from("!I", data, offset + 8)[0]
+                            ip = socket.inet_ntoa(struct.pack("!I", xaddr ^ 0x2112A442))
+                            return ip, port
+                    if attr_length == 0:
+                        offset += 4
+                    else:
+                        padding = (4 - (attr_length % 4)) % 4
+                        offset += 4 + attr_length + padding
+            except Exception:
+                continue
+
+    finally:
+        sock.close()
 
     return '127.0.0.1', local_port
 
