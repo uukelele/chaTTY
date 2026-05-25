@@ -251,7 +251,7 @@ class ChaTTY(App):
 
 
         elif event.button.id == 'send-btn':
-            self.send_chat_message()
+            await self.send_chat_message()
         elif event.button.id == 'disconnect-btn':
             await self.disconnect()
         elif event.button.id == 'copy-host-invite-btn':
@@ -265,7 +265,7 @@ class ChaTTY(App):
         if event.input.id == "msg-input":
             await self.send_chat_message()
 
-    def send_chat_message(self):
+    async def send_chat_message(self):
         msg_input = self.query_one('#msg-input', Input)
         msg_text = msg_input.value.strip()
 
