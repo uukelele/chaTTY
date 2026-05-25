@@ -70,17 +70,17 @@ class ChaTTY(App):
         margin-bottom: 1;
     }
 
-    #invite-container {
+    .copy-container {
         layout: horizontal;
         height: auto;
         margin-bottom: 1;
     }
 
-    #host-invite-output {
+    .readonly-output {
         width: 70%;
     }
 
-    #copy-btn {
+    .copy-btn {
         width: 30%;
         margin: 0;
     }
@@ -112,9 +112,9 @@ class ChaTTY(App):
                 Label("Host Chat", classes="section-title"),
                 Label("Invite Code:", classes="field-label"),
                 Horizontal(
-                    Input("Generating...", id="host-invite-output", disabled=True),
-                    Button("Copy", variant="primary", id="copy-btn"),
-                    id="invite-container",
+                    Input("Generating...", id="host-invite-output", disabled=True, classes="readonly-output"),
+                    Button("Copy", variant="primary", id="copy-host-invite-btn", classes="copy-btn"),
+                    id="invite-container", classes="copy-container"
                 ),
                 Label("Peer Answer:", classes="field-label"),
                 Input(placeholder="Paste here...", id="host-answer-input"),
@@ -125,7 +125,11 @@ class ChaTTY(App):
                 Input(placeholder="Paste here...", id="join-invite-input"),
                 Button("Generate Answer", variant="primary", id="join-generate-btn"),
                 Label("Your Answer (Send to Host):", classes="field-label"),
-                Input(placeholder="Waiting...", id="join-answer-output", disabled=True),
+                Horizontal(
+                    Input(placeholder="Waiting...", id="join-answer-output", disabled=True, classes="readonly-output"),
+                    Button("Copy", variant="primary", id="copy-answer-output-btn", classes="copy-btn"),
+                    id="answer-container", classes="copy-container",
+                ),
 
                 id="left-panel",
             ),
@@ -250,9 +254,12 @@ class ChaTTY(App):
             self.send_chat_message()
         elif event.button.id == 'disconnect-btn':
             await self.disconnect()
-        elif event.button.id == 'copy-btn':
+        elif event.button.id == 'copy-host-invite-btn':
             self.copy_to_clipboard(self.query_one('#host-invite-output').value)
             self.notify("Invite Code Copied!", severity="information")
+        elif event.button.id == 'copy-answer-output-btn':
+            self.copy_to_clipboard(self.query_one('#join-answer-output').value)
+            self.notify("Answer Copied!", severity="information")
 
     async def on_input_submitted(self, event: Input.Submitted) -> None:
         if event.input.id == "msg-input":
